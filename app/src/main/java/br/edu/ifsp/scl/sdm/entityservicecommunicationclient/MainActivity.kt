@@ -4,14 +4,11 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Bundle
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
-import android.os.Message
-import android.os.Messenger
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import br.edu.ifsp.scl.sdm.entityservicecommunication.IncrementBoundServiceInterface
 import br.edu.ifsp.scl.sdm.entityservicecommunicationclient.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
@@ -21,7 +18,10 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var incrementBoundServiceIntent: Intent // intent para iniciar o serviço
     private var counter = 0 // variável de controle do contador
-    private lateinit var ibsMessenger: Messenger // messenger do serviço
+
+    // private lateinit var ibsMessenger: Messenger // messenger do serviço
+    private var ibService: IncrementBoundServiceInterface? = null
+
 
     // Conexão com o serviço
     private val incrementBoundServiceConnection = object : ServiceConnection {
@@ -30,6 +30,10 @@ class MainActivity : AppCompatActivity() {
             Log.v(getString(R.string.app_name), "Client bound to the service.")
 
             service?.also { // verifica se o serviço existe
+
+                ibService = IncrementBoundServiceInterface.Stub.asInterface(service)
+
+                /*
                 ibsMessenger = Messenger(service)
 
                 // envia uma mensagem para o serviço
@@ -50,11 +54,13 @@ class MainActivity : AppCompatActivity() {
                         replyTo = messenger
                     }
                 })
+                */
             }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             Log.v(getString(R.string.app_name), "Client unbound to the service.")
+            ibService = null
         }
 
     }
@@ -86,12 +92,29 @@ class MainActivity : AppCompatActivity() {
                 setSupportActionBar(this)
             }
             incrementBt.setOnClickListener {
+
+                Thread {
+                    ibService?.increment(counter)?.also {
+                        counter = it
+                        runOnUiThread {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "You clicked $counter times",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }.start()
+
+                /*
                 ibsMessenger.send(Message.obtain().apply {
                     data.putInt("VALUE", counter)
                 })
+                */
             }
         }
     }
+
     override fun onDestroy() {
         super.onDestroy()
         unbindService(incrementBoundServiceConnection)
